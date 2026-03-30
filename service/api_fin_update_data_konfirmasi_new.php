@@ -1,0 +1,855 @@
+<?php
+include "config_api.php";
+include "../../sysconf/global_func.php";
+include "../../sysconf/db_config.php";
+
+// $idName              = $_GET['idName']; //UPDATE_FROM_CRM 
+$idName              = "UPDATE_FROM_CRM"; //UPDATE_FROM_CRM 
+$taskId              = $_GET['taskId']; //POL000000005
+$distributedDate     = $_GET['distributedDate']; //2021-04-23 04:10:36
+$no_pengajuan        = $_GET['no_pengajuan']; //TUP69020220000002 
+
+        // NEW CAE PHASE 2
+        $custModelCode= $_GET['custModelCode'];
+        $custModelCodeSpouse= $_GET['custModelCodeSpouse'];
+        $custModelCodeGuarantor= $_GET['custModelCodeGuarantor'];
+        $professionCodeGuarantor= $_GET['professionCodeGuarantor'];
+        $custEdd= $_GET['custEdd'];
+        $spouseEdd= $_GET['spouseEdd'];
+        $guarantorEdd= $_GET['guarantorEdd'];
+        $professionCode= $_GET['professionCode'];
+        $professionCodeSpouse= $_GET['professionCodeSpouse'];
+        $flagDeviationNegCust= $_GET['flagDeviationNegCust'];
+        $flagDeviationNegSpouse= $_GET['flagDeviationNegSpouse'];
+        $flagDeviationNegGuarantor= $_GET['flagDeviationNegGuarantor'];
+
+        
+$whr_sql = " task_id='$taskId' ";
+if ($no_pengajuan !="") {
+    $whr_sql = " no_pengajuan='$no_pengajuan' ";
+}
+$condb = connectDB();
+//API URL
+// $url = $url_api_fin.'/api/Pengajuan/UpdateFromCRM';
+$url = $url_api_fin.'/api/Pengajuan/UpdateTaskSLA';//echo "string $url";
+
+$dateexe = DATE("Y-m-d H:i:s");
+
+
+
+    $sqlcustmodel = "SELECT * FROM cc_master_customer_model";
+    $rescustmodel = mysqli_query($condb,$sqlcustmodel);
+    while($reccustmodel = mysqli_fetch_array($rescustmodel)){
+      $arr_modelname[$reccustmodel["cust_model_name"]]  = $reccustmodel['cust_model_code'];
+    }
+
+    $sqlprof = "SELECT * FROM cc_master_profession ";
+    $resprof = mysqli_query($condb,$sqlprof);
+    while($recprof = mysqli_fetch_array($resprof)){
+      $arr_prof[$recprof["profession_name"]]  = $recprof['profession_code'];
+    }
+
+    $sqloffice = "SELECT * FROM cc_master_cabang WHERE id ='".$three_or_office."' LIMIT 1";
+    $resoffice = mysqli_query($condb,$sqloffice);
+    if($recoffice = mysqli_fetch_array($resoffice)){
+      $three_or_office  = $recoffice['office_code'];
+    }
+
+
+//create a new cURL resource
+
+
+$sqla = "SELECT * FROM cc_ts_konfirmasi WHERE $whr_sql ";//task_id='$taskId'
+$resa = mysqli_query($condb,$sqla);
+if($reca = mysqli_fetch_array($resa)){
+    @extract($reca,EXTR_OVERWRITE);
+    if ($no_pengajuan!="") {
+        $taskId=$task_id;
+    }
+
+        $sql12 = " SELECT a.agent_name, b.emp_name, c.referantor_id, c.referantor_no, c.referantor_name FROM cc_agent_profile a 
+                 LEFT JOIN cc_employee b ON a.agent_id=b.ref_no
+                 LEFT JOIN cc_master_referantor c ON b.ref_emp_id=c.ref_emp_id WHERE a.id='$last_followup_by' ";//echo "string $sql12 </br>";
+        $res12 = mysqli_query($condb, $sql12);
+        if($rec12 = mysqli_fetch_array($res12)) {
+          $referantor_id   = $rec12["referantor_id"];
+          $referantor_no   = $rec12["referantor_no"];
+          $referantor_name = $rec12["referantor_name"];
+        }
+
+                // ,b.dukcapil_stat       = '$txt_activity_ducapil',
+                // ,b.negative_cust       = '$txt_activity_neglist',
+                // ,b.dukcapil_spouse_stat       = '$txt_activity_pasangan_ducapil',
+                // ,b.negative_spouse_cust       = '$txt_activity_pasangan_neglist',
+                // ,b.dukcapil_guarantor_stat    = '$txt_activity_guarantor_ducapil',
+                // ,b.negative_guarantor_cust    = '$txt_activity_guarantor_neglist',
+    $sqlcs = "SELECT b.call_status,a.dukcapil_stat,a.negative_cust,a.dukcapil_spouse_stat,a.negative_spouse_cust,a.dukcapil_guarantor_stat,a.negative_guarantor_cust FROM cc_ts_konfirmasi_call_session a LEFT JOIN cc_ts_konfirmasi_call_status b  ON a.result=b.id WHERE a.task_id='$taskId' ORDER BY a.id DESC LIMIT 1 ";//echo "string $sqlcs </br></br>";
+    $rescs = mysqli_query($condb,$sqlcs);
+    if($reccs = mysqli_fetch_array($rescs)){
+        $call_status2         = $reccs['call_status'];
+        $call_status_sub12    = $reccs['call_status_sub1'];
+        if ($call_status2=="Prospect") {
+            $prospect_stat2 = "Prospek";
+        }else if ($call_status2=="Interest") {
+            $prospect_stat2 = $call_status2;
+        }else if ($call_status2=="Uncontacted") {
+            $prospect_stat2 = $call_status2;
+        }else if ($call_status2=="Unconnected") {
+            $prospect_stat2 = $call_status2;
+        }
+        // else if ($call_status2=="Follow Up") {
+        //     $prospect_stat2 = "Not Interest";
+        // }
+        // else if ($call_status2=="UnAnswer") {
+        //     $prospect_stat2 = "Uncontacted";
+        // }
+        else if ($call_status2=="UnConnected") {
+            $prospect_stat2 = "Unconnected";
+        }else{
+            $prospect_stat2 = $call_status2;
+        }
+        $dukcapil_stat         = $reccs['dukcapil_stat'];
+        $negative_cust         = $reccs['negative_cust'];
+        $dukcapil_spouse_stat         = $reccs['dukcapil_spouse_stat'];
+        $negative_spouse_cust         = $reccs['negative_spouse_cust'];
+        $dukcapil_guarantor_stat         = $reccs['dukcapil_guarantor_stat'];
+        $negative_guarantor_cust         = $reccs['negative_guarantor_cust'];
+    }
+    // echo "string $sqlcs | $prospect_stat2 | $call_status2";
+    // $tanggal_lahir= $tanggal_lahir." 00:00:00";
+    // $tanggal_lahir_pasangan= $tanggal_lahir_pasangan." 00:00:00";
+    // $release_date_bpkb= $release_date_bpkb." 00:00:00";
+    // $maturity_date = $maturity_date." 00:00:00";
+    // $tanggal_jatuh_tempo = $tanggal_jatuh_tempo." 00:00:00";
+    $ch = curl_init($url);
+    // $max_past_due_date = "19";
+    // if ($legalRt=='') {
+    //     $legalRt='00';
+    // }
+    // if ($legalRw=='') {
+    //     $legalRw='00';
+    // }
+    // if ($mobile_1=='') {
+    //     $mobile_1='null';
+    // }
+    // if ($mobile_2=='') {
+    //     $mobile_2='null';
+    // }
+    // if ($phone_1=='') {
+    //     $phone_1='null';
+    // }
+    // if ($phone_2=='') {
+    //     $phone_2='null';
+    // }
+    // if ($office_phone_1=='') {
+    //     $office_phone_1='null';
+    // }
+    // if ($office_phone_2=='') {
+    //     $office_phone_2='null';
+    // }
+    // if ($other_biz_name=='') {
+    //     $other_biz_name='null';
+    // }
+    // if ($soa=='') {
+    //     $soa='null';
+    // }
+    // if ($ltv=='') {
+    //     $ltv='null';
+    // }
+    // if ($down_payment=='') {
+    //     $down_payment='null';
+    // }
+
+    $monthly_income  = str_replace(".00", "", $monthly_income); 
+    $monthly_instalment = str_replace(".00", "", $monthly_instalment);
+    $plafond        = str_replace(".00", "", $plafond);
+    $otr_price    = str_replace(".00", "", $otr_price);
+    $emp_position = "TELESALES";
+    // if ($tanggal_lahir_pasangan =="0000-00-00 00:00:00") {// || $tanggal_lahir_pasangan ==""
+    //     $tanggal_lahir_pasangan = "1970-01-01 00:00:00";
+    // }
+    // if ($distributed_date =="0000-00-00 00:00:00") {// || $distributed_date ==""
+    //     $distributed_date = "1970-01-01 00:00:00";
+    // }
+    // if ($release_date_bpkb =="0000-00-00 00:00:00") {// || $release_date_bpkb ==""
+    //     $release_date_bpkb = "1970-01-01 00:00:00";
+    // }
+    // if ($maturity_date =="0000-00-00 00:00:00") {// || $maturity_date ==""
+    //     $maturity_date = "1970-01-01 00:00:00";
+    // }
+    // if ($started_date =="0000-00-00 00:00:00") {// || $started_date ==""
+    //     $started_date = "1970-01-01 00:00:00";
+    // }
+    // if ($tanggal_jatuh_tempo =="0000-00-00 00:00:00") {// || $tanggal_jatuh_tempo ==""
+    //     $tanggal_jatuh_tempo = "1970-01-01 00:00:00";
+    // }
+    // if ($os_principal=="") {
+    //     $os_principal = "0";
+    // }
+    // if ($max_past_due_date=="") {
+    //     $max_past_due_date = "0";
+    // }
+    
+//setup request to send json via POST 1970-01-01 00:00:00
+    $path = '../../public/konfirm/cust_photo/'.$cust_photo;
+    $type = pathinfo($path, PATHINFO_EXTENSION);
+    $data = file_get_contents($path);
+    $cust_photo = base64_encode($data);
+
+
+    $path = '../../public/konfirm/id_photo/'.$id_photo;
+    $type = pathinfo($path, PATHINFO_EXTENSION);
+    $data = file_get_contents($path);
+    $id_photo = base64_encode($data);
+
+
+    // if ($distributed_date=='') {
+    //     $distributed_date=null;
+    // }
+    // if ($tanggal_lahir=='') {
+    //     $tanggal_lahir=null;
+    // }
+    // if ($tanggal_lahir_pasangan=='') {
+    //     $tanggal_lahir_pasangan=null;
+    // }
+    // if ($monthly_income=='') {
+    //     $monthly_income=null;
+    // }
+    // if ($monthly_expense=='') {
+    //     $monthly_expense=null;
+    // }
+    // if ($plafond=='') {
+    //     $plafond=null;
+    // }
+    // if ($otr_price=='') {
+    //     $otr_price=null;
+    // }
+    // if ($num_of_dependents=='') {
+    //     $num_of_dependents=null;
+    // }
+    // if ($sisa_tenor=='') {
+    //     $sisa_tenor=null;
+    // }
+    // if ($tenor_new=='') {
+    //     $tenor_new=null;
+    // }
+    // if ($release_date_bpkb=='') {
+    //     $release_date_bpkb=null;
+    // }
+    // if ($max_past_due_date=='') {
+    //     $max_past_due_date=null;
+    // }
+    // if ($maturity_date=='') {
+    //     $maturity_date=null;
+    // }
+    // if ($down_payment=='') {
+    //     $down_payment=null;
+    // }
+    // if ($started_date=='') {
+    //     $started_date=null;
+    // }
+    // if ($monthly_instalment=='') {
+    //     $monthly_instalment=null;
+    // }
+    // if ($stay_length=='') {
+    //     $stay_length=null;
+    // }
+    // if ($length_of_work=='') {
+    //     $length_of_work=null;
+    // }
+    // if ($duplicate_ke=='') {
+    //     $duplicate_ke=null;
+    // }
+    // if ($due_date=='') {
+    //     $due_date=null;
+    // }
+    // if ($os_installment_amt=='') {
+    //     $os_installment_amt=null;
+    // }
+    
+    // $data = array(
+    //         "TaskId" => "$task_id",  
+    //         "DistributedDate" => $distributed_date,
+    //         "OfficeRegionCode" => "$region_code",
+    //         "OfficeRegionName" => "$region_name",
+    //         "OfficeCode" => "$cabang_code",
+    //         "OfficeName" => "$cabang_name",
+    //         "ProdOfferingCode" => "$product_offering_code",
+    //         "CustNo" => "$customer_id",
+    //         "CustName" => "$customer_name",
+    //         "IdNo" => "$nik_ktp",
+    //         "Religion" => "$religion",
+    //         "BirthPlace" => "$tempat_lahir",
+    //         "BirthDate" => $tanggal_lahir,
+    //         "SpouseName" => "$nama_pasangan",
+    //         "SpouseBirthDate" => $tanggal_lahir_pasangan,
+    //         "SpouseIdPhoto" => "$spouse_id_photo",
+    //         "LegalAddr" => "$legal_alamat",
+    //         "LegalCity" => "$legal_city",
+    //         "LegalSubDistrict" => "$legal_kecamatan",
+    //         "LegalVillage" => "$legal_kelurahan",
+    //         "LegalProvince" => "$legal_provinsi",
+    //         "LegalDistrict" => "$legal_kabupaten",
+    //         "LegalRt" => "$legal_rt",
+    //         "LegalRw" => "$legal_rw",
+    //         "LegalZipcode" => "$legal_kodepos",
+    //         "LegalSubZipcode" => "$legal_sub_kodepos",
+    //         "SurveyAddr" => "$survey_alamat",
+    //         "SurveyRt" => "$survey_rt",
+    //         "SurveyRw" => "$survey_rw",
+    //         "SurveyProvince" => "$survey_provinsi",
+    //         "SurveyCity" => "$survey_city",
+    //         "SurveySubDistrict" => "$survey_kecamatan",
+    //         "SurveyVillage" => "$survey_kelurahan",
+    //         "SurveyZipCode" => "$survey_kodepos",
+    //         "SurveySubZipcode" => "$survey_sub_kodepos",
+    //         "SurveyDistrict" => "$survey_city",
+    //         //"SurveySubDistrict" => "$SurveySubDistrict",
+    //         "MobilePhoneNo1" => "$mobile_1",
+    //         "MobilePhoneNo2" => "$mobile_2",
+    //         "Phone1" => "$phone_1",
+    //         "Phone2" => "$phone_2",
+    //         "JobPhone1" => "$office_phone_1",
+    //         "JobPhone2" => "$office_phone_2",
+    //         "ProfessionName" => "$profession_name",
+    //         "ProfessionCategoryName" => "$profession_cat_name",
+    //         "JobPosition" => "$job_position",
+    //         "IndustryTypeName" => "$industry_type_name",
+    //         "MonthlyIncome" => $monthly_income,
+    //         "MonthlyExpense" => $monthly_expense,
+    //         "Plafon" => $plafond,
+    //         "OtherBizName" => "$oth_biz_name",
+    //         "CustRating" => "$customer_rating",
+    //         "SupplBranchName" => "$suppl_name",
+    //         "SupplBranchCode" => "$suppl_code",
+    //         "MachineNo" => "$no_mesin",
+    //         "ChassisNo" => "$no_rangka",
+    //         "AssetDescription" => "$asset_desc",
+    //         "AssetName" => "$AssetName",
+    //         "OtrPriceAmt" => $otr_price,
+    //         "ManufacturingYear" => "$item_year",
+    //         // "OwnerRelationship" => "$ownership",
+    //         "AgrmntRating" => "$agrmnt_rating",
+    //         "ContractStat" => "$contract_stat",
+    //         "NextInstNum" => $num_of_dependents,
+    //         "OsTenor" => $sisa_tenor,
+    //         "Tenor" => $tenor_new,
+    //         "BpkbReleaseDt" => $release_date_bpkb,
+    //         "MaxPastDueDt" => $max_past_due_date,
+    //         "MaturityDt" => $maturity_date,
+    //         "ProdCategory" => "$product_cat",
+    //         "TaskType" => "$jenis_task",
+    //         "SOA" => "$soa",
+    //         "DownPayment" => $down_payment,
+    //         "Ltv" => "$ltv",
+    //         "AnswerCall" => "$answer_call",
+    //         "ProspectStat" => "$prospect_stat2",
+    //         "ReasonNotProspect" => "$reason_not_prospect",
+    //         "Note" => "$notes",
+    //         "StartDt" => $started_date,
+    //         "EmpPosition" => "$emp_position",
+    //         "IaApp" => "$ia_app",
+    //         "CustPhoto" => "$cust_photo",
+    //         "IdPhoto" => "$id_photo",
+    //         "FCardPhoto" => "$f_card_photo",
+    //         "PriorityLvl" => "$priority_level",
+    //         "DukcapilStat" => "$dukcapil_stat",
+    //         "FieldPersonName" => "$field_person_name",
+    //         "ReferantorCode" => "$referantor_code",
+    //         "ReferantorName" => "$referantor_name",
+    //         "PosDealer" => "$pos_dealer",
+    //         "MotherName" => "$nama_ibukandung",
+    //         "HomeStat" => "$kepemilikan_rumah",
+    //         "MonthlyInstallment" => $monthly_instalment,
+    //         "MaritalStat" => "$status_perkawinan",
+    //         "Education" => "$education",
+    //         "StayLength" => $stay_length,
+    //         "LengthOfWork" => $length_of_work,
+    //         "IsDuplicate" => "$duplicate_result",
+    //         "DuplicateNum" => $duplicate_ke,
+    //         "AssetCode" => "$item_type",
+    //         "DueDt" => $due_date,
+    //         "OsInstallmentAmt" => $os_installment_amt,
+    //         "StatusCall" => "$status_call",
+    //         // "SpouseNIK" => "$SpouseNIK",
+    //         // "SpouseBirthPlace" => "$tempat_lahir",
+    //         // "GuarantorName" => "$guarantor_name",
+    //         // "GuarantorNIK" => "$guarantor_nik",
+    //         // "GuarantorMobilePhoneNo" => "$guarantor_phone1",
+    //         // "GuarantorAddr" => "$guarantor_address",
+    //         // "GuarantorRt" => "$guarantor_rt",
+    //         // "GuarantorRw" => "$guarantor_rw",
+    //         // "GuarantorProvince" => "$guarantor_provinsi",
+    //         // "GuarantorCity" => "$GuarantorCity",
+    //         // "GuarantorKecamatan" => "$guarantor_kecamatan",
+    //         // "GuarantorKelurahan" => "$guarantor_kelurahan",
+    //         // "GuarantorZipcode" => "$guarantor_zipcode",
+    //         // "GuarantorSubZipcode" => "$GuarantorSubZipcode",
+    //         // "GuarantorRelationship" => "$GuarantorRelationship",
+    //         "CustModel" => "$customer_model",
+    //         "NotesOtherVehicle" => "$notes_other_vehicle",
+    //         "NotesMobilePhoneNo" => "$notes_phone_alternative",
+    // );
+
+
+    if($distributed_date!=''&&$distributed_date !="0000-00-00 00:00:00"){ 
+            $data2.=',"DistributedDate":"'.$distributed_date.'"';
+    }
+    if($region_code!=''){ 
+            $data2.=',"OfficeRegionCode":"'.$region_code.'"';
+    }
+    if($region_name!=''){ 
+            $data2.=',"OfficeRegionName":"'.$region_name.'"';
+    }
+    if($cabang_code!=''){ 
+            $data2.=',"OfficeCode":"'.$cabang_code.'"';
+    }
+    if($cabang_name!=''){ 
+            $data2.=',"OfficeName":"'.$cabang_name.'"';
+    }
+    if($product_offering_code!=''){ 
+            $data2.=',"ProdOfferingCode":"'.$product_offering_code.'"';
+    }
+    if($customer_id!=''){ 
+            $data2.=',"CustNo":"'.$customer_id.'"';
+    }
+    if($customer_name!=''){ 
+            $data2.=',"CustName":"'.$customer_name.'"';
+    }
+    if($nik_ktp!=''){ 
+            $data2.=',"IdNo":"'.$nik_ktp.'"';
+    }
+    if($religion!=''){ 
+            $data2.=',"Religion":"'.$religion.'"';
+    }
+    if($tempat_lahir!=''){ 
+            $data2.=',"BirthPlace":"'.$tempat_lahir.'"';
+    }
+    if($tanggal_lahir!=''){ 
+            $data2.=',"BirthDate":"'.$tanggal_lahir.'"';
+    }
+    if($nama_pasangan!=''){ 
+            $data2.=',"SpouseName":"'.$nama_pasangan.'"';
+    }
+    // if($tanggal_lahir_pasangan!=''&&$tanggal_lahir_pasangan !="0000-00-00 00:00:00"){ 
+    //         $data2.=',"SpouseBirthDate":"'.$tanggal_lahir_pasangan.'"';
+    // }
+    if($visit_dt!=''&&$visit_dt !="0000-00-00 00:00:00"){ 
+            $data2.=',"SurveyDt":"'.$visit_dt.'"';
+    }
+    if($spouse_id_photo!=''){ 
+            $data2.=',"SpouseIdPhoto":"'.$spouse_id_photo.'"';
+    }
+    if($legal_alamat!=''){ 
+            $data2.=',"LegalAddr":"'.$legal_alamat.'"';
+    }
+    if($legal_city!=''){ 
+            $data2.=',"LegalCity":"'.$legal_city.'"';
+    }
+    if($legal_kecamatan!=''){ 
+            $data2.=',"LegalSubDistrict":"'.$legal_kecamatan.'"';
+    }
+    if($legal_kelurahan!=''){ 
+            $data2.=',"LegalVillage":"'.$legal_kelurahan.'"';
+    }
+    if($legal_provinsi!=''){ 
+            $data2.=',"LegalProvince":"'.$legal_provinsi.'"';
+    }
+    if($legal_kabupaten!=''){ 
+            $data2.=',"LegalDistrict":"'.$legal_kabupaten.'"';
+    }
+    if($legal_rt!=''){ 
+            $data2.=',"LegalRt":"'.$legal_rt.'"';
+    }
+    if($legal_rw!=''){ 
+            $data2.=',"LegalRw":"'.$legal_rw.'"';
+    }
+    if($legal_kodepos!=''){ 
+            $data2.=',"LegalZipcode":"'.$legal_kodepos.'"';
+    }
+    if($legal_sub_kodepos!=''){ 
+            $data2.=',"LegalSubZipcode":"'.$legal_sub_kodepos.'"';
+    }
+    if($survey_alamat!=''){ 
+            $data2.=',"SurveyAddr":"'.$survey_alamat.'"';
+    }
+    if($survey_rt!=''){ 
+            $data2.=',"SurveyRt":"'.$survey_rt.'"';
+    }
+    if($survey_rw!=''){ 
+            $data2.=',"SurveyRw":"'.$survey_rw.'"';
+    }
+    if($survey_provinsi!=''){ 
+            $data2.=',"SurveyProvince":"'.$survey_provinsi.'"';
+    }
+    if($survey_city!=''){ 
+            $data2.=',"SurveyCity":"'.$survey_city.'"';
+    }
+    if($survey_kecamatan!=''){ 
+            $data2.=',"SurveySubDistrict":"'.$survey_kecamatan.'"';
+    }
+    if($survey_kelurahan!=''){ 
+            $data2.=',"SurveyVillage":"'.$survey_kelurahan.'"';
+    }
+    if($survey_kodepos!=''){ 
+            $data2.=',"SurveyZipCode":"'.$survey_kodepos.'"';
+    }
+    if($survey_sub_kodepos!=''){ 
+            $data2.=',"SurveySubZipcode":"'.$survey_sub_kodepos.'"';
+    }
+    if($survey_kabupaten!=''){ 
+            $data2.=',"SurveyDistrict":"'.$survey_kabupaten.'"';
+    }
+    if($SurveySubDistrict!=''){ 
+            $data2.=',"SurveySubDistrict":"'.$SurveySubDistrict.'"';
+    }
+    if($mobile_1!=''){ 
+            $data2.=',"MobilePhoneNo1":"'.$mobile_1.'"';
+    }
+    if($mobile_2!=''){ 
+            $data2.=',"MobilePhoneNo2":"'.$mobile_2.'"';
+    }
+    if($phone_1!=''){ 
+            $data2.=',"Phone1":"'.$phone_1.'"';
+    }
+    if($phone_2!=''){ 
+            $data2.=',"Phone2":"'.$phone_2.'"';
+    }
+    if($office_phone_1!=''){ 
+            $data2.=',"JobPhone1":"'.$office_phone_1.'"';
+    }
+    if($office_phone_2!=''){ 
+            $data2.=',"JobPhone2":"'.$office_phone_2.'"';
+    }
+    if($profession_name!=''){ 
+            $data2.=',"ProfessionName":"'.$profession_name.'"';
+    }
+    if($profession_cat_name!=''){ 
+            $data2.=',"ProfessionCategoryName":"'.$profession_cat_name.'"';
+    }
+    if($job_position!=''){ 
+            $data2.=',"JobPosition":"'.$job_position.'"';
+    }
+    if($industry_type_name!=''){ 
+            $data2.=',"IndustryTypeName":"'.$industry_type_name.'"';
+    }
+    if($monthly_income!=''&&$monthly_income!='0'){ 
+            $data2.=',"MonthlyIncome":"'.$monthly_income.'"';
+             // if ($monthly_income=='0') {
+             //    $data2.=',"MonthlyIncome":"null"';
+             // }else{
+             //    $data2.=',"MonthlyIncome":"'.$monthly_income.'"';
+             // }
+    }
+    if($monthly_expense!=''){ 
+            $data2.=',"MonthlyExpense":"'.$monthly_expense.'"';
+    }
+    if($plafond!=''&&$plafond!='0.0'){ 
+            $data2.=',"Plafon":"'.$plafond.'"';
+    }
+    if($oth_biz_name!=''){ 
+            $data2.=',"OtherBizName":"'.$oth_biz_name.'"';
+    }
+    if($customer_rating!=''){ 
+            $data2.=',"CustRating":"'.$customer_rating.'"';
+    }
+    if($suppl_name!=''){ 
+            $data2.=',"SupplBranchName":"'.$suppl_name.'"';
+    }
+    if($suppl_code!=''){ 
+            $data2.=',"SupplBranchCode":"'.$suppl_code.'"';
+    }
+    if($no_mesin!=''){ 
+            $data2.=',"MachineNo":"'.$no_mesin.'"';
+    }
+    if($no_rangka!=''){ 
+            $data2.=',"ChassisNo":"'.$no_rangka.'"';
+    }
+    if($asset_desc!=''){ 
+            $data2.=',"AssetDescription":"'.$asset_desc.'"';
+    }
+    if($AssetName!=''){ 
+            $data2.=',"AssetName":"'.$AssetName.'"';
+    }
+    if($otr_price!=''){ 
+            $data2.=',"OtrPriceAmt":"'.$otr_price.'"';
+    }
+    if($item_year!=''){ 
+            $data2.=',"ManufacturingYear":"'.$item_year.'"';
+    }
+    // if($ownership!=''){ 
+    //         $data2.=',"OwnerRelationship":"'.$ownership.'"';
+    // }
+    if($agrmnt_rating!=''){ 
+            $data2.=',"AgrmntRating":"'.$agrmnt_rating.'"';
+    }
+    if($contract_stat!=''){ 
+            $data2.=',"ContractStat":"'.$contract_stat.'"';
+    }
+    if($num_of_dependents!=''){ 
+            $data2.=',"NextInstNum":"'.$num_of_dependents.'"';
+    }
+    if($sisa_tenor!=''){ 
+            $data2.=',"OsTenor":"'.$sisa_tenor.'"';
+    }
+    if($tenor_new!=''){ 
+            $data2.=',"Tenor":"'.$tenor_new.'"';
+    }
+    if($release_date_bpkb!=''&&$release_date_bpkb !="0000-00-00 00:00:00"){ 
+            $data2.=',"BpkbReleaseDt":"'.$release_date_bpkb.'"';
+    }
+    if($max_past_due_date!=''){ 
+            $data2.=',"MaxPastDueDt":"'.$max_past_due_date.'"';
+    }
+    if($maturity_date!=''&&$maturity_date !="0000-00-00 00:00:00"){ 
+            $data2.=',"MaturityDt":"'.$maturity_date.'"';
+    }
+    if($product_cat!=''){ 
+            $data2.=',"ProdCategory":"'.$product_cat.'"';
+    }
+    if($jenis_task!=''){ 
+            $data2.=',"TaskType":"'.$jenis_task.'"';
+    }
+    if($soa!=''){ 
+            $data2.=',"SOA":"'.$soa.'"';
+    }
+    if($down_payment!=''){ 
+            $data2.=',"DownPayment":"'.$down_payment.'"';
+    }
+    if($ltv!=''&&$ltv!='.00'){ 
+            $data2.=',"Ltv":"'.$ltv.'"';
+    }
+    if($answer_call!=''){ 
+            $data2.=',"AnswerCall":"'.$answer_call.'"';
+    }
+    if($prospect_stat2!=''){ 
+            $data2.=',"ProspectStat":"'.$prospect_stat2.'"';
+    }
+    if($reason_not_prospect!=''){ 
+            $data2.=',"ReasonNotProspect":"'.$reason_not_prospect.'"';
+    }
+    if($desc_note!=''){ 
+            $data2.=',"Note":"'.$desc_note.'"';
+    }
+    if($started_date!=''&&$started_date !="0000-00-00 00:00:00"){ 
+            $data2.=',"StartDt":"'.$started_date.'"';
+    }
+    if($emp_position!=''){ 
+            $data2.=',"EmpPosition":"'.$emp_position.'"';
+    }
+    if($ia_app!=''){ 
+            $data2.=',"IaApp":"'.$ia_app.'"';
+    }
+    if($cust_photo!=''){ 
+            $data2.=',"CustPhoto":"'.$cust_photo.'"';
+    }
+    if($id_photo!=''){ 
+            $data2.=',"IdPhoto":"'.$id_photo.'"';
+    }
+    if($f_card_photo!=''){ 
+            $data2.=',"FCardPhoto":"'.$f_card_photo.'"';
+    }
+    if($priority_level!=''){ 
+            $data2.=',"PriorityLvl":"'.$priority_level.'"';
+    }
+    if($dukcapil_stat!=''){ 
+            $data2.=',"DukcapilStat":"'.$dukcapil_stat.'"';
+    }
+    if($field_person_name!=''){ 
+            $data2.=',"FieldPersonName":"'.$field_person_name.'"';
+    }
+    // if($referantor_no!=''){ 
+    //         $data2.=',"ReferantorCode":"'.$referantor_no.'"';
+    // }
+    // if($referantor_name!=''){ 
+    //         $data2.=',"ReferantorName":"'.$referantor_name.'"';
+    // }
+    if($pos_dealer!=''){ 
+            $data2.=',"PosDealer":"'.$pos_dealer.'"';
+    }
+    if($nama_ibukandung!=''){ 
+            $data2.=',"MotherName":"'.$nama_ibukandung.'"';
+    }
+    if($kepemilikan_rumah!=''){ 
+            $data2.=',"HomeStat":"'.$kepemilikan_rumah.'"';
+    }
+    if($monthly_instalment!=''){ 
+            $data2.=',"MonthlyInstallment":"'.$monthly_instalment.'"';
+    }
+    if($status_perkawinan!=''){ 
+            $data2.=',"MaritalStat":"'.$status_perkawinan.'"';
+    }
+    if($education!=''){ 
+            $data2.=',"Education":"'.$education.'"';
+    }
+    if($stay_length!=''){ 
+            $data2.=',"StayLength":"'.$stay_length.'"';
+    }
+    if($length_of_work!=''){ 
+            $data2.=',"LengthOfWork":"'.$length_of_work.'"';
+    }
+    if($duplicate_result!=''){ 
+            $data2.=',"IsDuplicate":"'.$duplicate_result.'"';
+    }
+    if($duplicate_ke!=''){ 
+            $data2.=',"DuplicateNum":"'.$duplicate_ke.'"';
+    }
+    // if($item_type!=''){ 
+    //         $data2.=',"AssetCode":"'.$item_type.'"';
+    // }
+    if($due_date!=''){ 
+            $data2.=',"DueDt":"'.$due_date.'"';
+    }
+    if($os_installment_amt!=''){ 
+            $data2.=',"OsInstallmentAmt":"'.$os_installment_amt.'"';
+    }
+    if($status_call!=''){ 
+            $data2.=',"StatusCall":"'.$status_call.'"';
+    }
+    if($SpouseNIK!=''){ 
+            $data2.=',"SpouseNIK":"'.$SpouseNIK.'"';
+    }
+    // if($tempat_lahir!=''){ 
+    //         $data2.=',"SpouseBirthPlace":"'.$tempat_lahir.'"';
+    // }
+    if($guarantor_name!=''){ 
+            $data2.=',"GuarantorName":"'.$guarantor_name.'"';
+    }
+    if($guarantor_nik!=''){ 
+            $data2.=',"GuarantorNIK":"'.$guarantor_nik.'"';
+    }
+    if($guarantor_phone1!=''){ 
+            $data2.=',"GuarantorMobilePhoneNo":"'.$guarantor_phone1.'"';
+    }
+    if($guarantor_address!=''){ 
+            $data2.=',"GuarantorAddr":"'.$guarantor_address.'"';
+    }
+    if($guarantor_rt!=''){ 
+            $data2.=',"GuarantorRt":"'.$guarantor_rt.'"';
+    }
+    if($guarantor_rw!=''){ 
+            $data2.=',"GuarantorRw":"'.$guarantor_rw.'"';
+    }
+    if($guarantor_provinsi!=''){ 
+            $data2.=',"GuarantorProvince":"'.$guarantor_provinsi.'"';
+    }
+    if($GuarantorCity!=''){ 
+            $data2.=',"GuarantorCity":"'.$GuarantorCity.'"';
+    }
+    if($guarantor_kecamatan!=''){ 
+            $data2.=',"GuarantorKecamatan":"'.$guarantor_kecamatan.'"';
+    }
+    if($guarantor_kelurahan!=''){ 
+            $data2.=',"GuarantorKelurahan":"'.$guarantor_kelurahan.'"';
+    }
+    if($guarantor_zipcode!=''){ 
+            $data2.=',"GuarantorZipcode":"'.$guarantor_zipcode.'"';
+    }
+    if($GuarantorSubZipcode!=''){ 
+            $data2.=',"GuarantorSubZipcode":"'.$GuarantorSubZipcode.'"';
+    }
+    if($GuarantorRelationship!=''){ 
+            $data2.=',"GuarantorRelationship":"'.$GuarantorRelationship.'"';
+    }
+    if($customer_model!=''){ 
+            $data2.=',"CustModel":"'.$customer_model.'"';
+    }
+    if($notes_other_vehicle!=''){ 
+            $data2.=',"NotesOtherVehicle":"'.$notes_other_vehicle.'"';
+    }
+    if($notes_phone_alternative!=''){ 
+            $data2.=',"NotesMobilePhoneNo":"'.$notes_phone_alternative.'"';
+    }
+
+    //start new
+    if($dukcapil_stat!=''){ 
+            $data2.=',"DukcapilStat":"'.$dukcapil_stat.'"';
+    }
+    if($negative_cust!=''){ 
+            $data2.=',"NegativeCust":"'.$negative_cust.'"';
+    }
+    if($dukcapil_spouse_stat!=''){ 
+            $data2.=',"DukcapilSpouseResult":"'.$dukcapil_spouse_stat.'"';
+    }
+    if($negative_spouse_cust!=''){ 
+            $data2.=',"NegativeSpouse":"'.$negative_spouse_cust.'"';
+    }
+    if($dukcapil_guarantor_stat!=''){ 
+            $data2.=',"DukcapilGuarantorResult":"'.$dukcapil_guarantor_stat.'"';
+    }
+    if($negative_guarantor_cust!=''){ 
+            $data2.=',"NegativeGuarantor":"'.$negative_guarantor_cust.'"';
+    }
+    //end new
+
+    
+        // NEW CAE PHASE 2
+$data2.=',"custModelCode":"'.$arr_modelname[$custModelCode].'"';
+$data2.=',"custModelCodeSpouse":"'.$arr_modelname[$custModelCodeSpouse].'"';
+$data2.=',"custModelCodeGuarantor":"'.$arr_modelname[$custModelCodeGuarantor].'"';
+$data2.=',"professionCodeGuarantor":"'.$arr_prof[$professionCodeGuarantor].'"';
+$data2.=',"custEdd":"'.$custEdd.'"';
+$data2.=',"spouseEdd":"'.$spouseEdd.'"';
+$data2.=',"guarantorEdd":"'.$guarantorEdd.'"';
+$data2.=',"professionCode":"'.$arr_prof[$professionCode].'"';
+$data2.=',"professionCodeSpouse":"'.$arr_prof[$professionCodeSpouse].'"';
+$data2.=',"flagDeviationNegCust":"'.$flagDeviationNegCust.'"';
+$data2.=',"flagDeviationNegSpouse":"'.$flagDeviationNegSpouse.'"';
+$data2.=',"flagDeviationNegGuarantor":"'.$flagDeviationNegGuarantor.'"';
+
+
+    $data = '{"TaskId":"'.$task_id.'"'.$data2.'}';
+
+
+    // $payload = json_encode($data);
+    $payload = $data;
+
+
+    // $payload = json_encode($data);
+    // echo "string $payload </br>";die();
+    //attach encoded JSON string to the POST fields
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+
+    //set the content type to application/json
+    curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+
+    //return response instead of outputting
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+    //execute the POST request
+    $result = curl_exec($ch);
+// print_r($result); echo "<br>";
+// echo 'Curl error: ' . curl_error($ch);
+
+    $resp = json_decode($result, true);
+    // echo $resp;
+    $result = str_replace("[", "", $result);
+    $result = str_replace("]", "", $result);
+    echo $result;
+    // echo " </br></br>string $result";
+    // echo $resp;
+    // print_r($resp);
+
+    //close cURL resource
+    curl_close($ch);
+}
+
+
+$responseMessage        = $resp[0]['responseMessage'];
+$sqllog = "INSERT INTO cc_respons_log SET
+                type_api            ='API_UPDATE_Data_To_POLO', 
+                url_api             ='$url', 
+                post_api            ='$payload', 
+                respon_status       ='$responseMessage', 
+                respon_desc         ='$result', 
+                respon_exe          ='$dateexe', 
+                respon_time         =now()";
+$reslog = mysqli_query($condb,$sqllog);
+
+// }
+
+
+disconnectDB($condb);
+?>
